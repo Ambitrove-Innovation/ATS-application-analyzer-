@@ -8,7 +8,7 @@ const Navbar = () => {
       </Link>
       <Link to="/upload">
         <p className="primary-button w-fit capitalize transition-all duration-500 ease-in-out hover:scale-105 ">
-          Upload Resume <span className="text-green-500 font-semibold">✓</span>
+          Upload Resume
         </p>
       </Link>
     </nav>
