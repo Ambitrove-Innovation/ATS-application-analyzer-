@@ -22,8 +22,7 @@ const resume = () => {
 
   const { auth, isLoading, fs, kv } = usePuterStore();
 
-  if (!isLoading && !auth.isAuthenticated)
-    useAuthRedirect(`/auth?next=/resume/${id}`);
+  useAuthRedirect(`/auth?next=/resume/${id}`);
 
   useEffect(() => {
     const loadResume = async () => {

@@ -1,21 +1,20 @@
 import { type FormEvent, useState } from "react";
-import { useNavigate } from "react-router";
-import FileUploader from "~/components/FileUploader";
 import Navbar from "~/components/Navbar";
-import { prepareInstructions } from "~/constants";
-import type { AnalyzerPropsTypes } from "~/interfacePropTypes/analyzerPropTypes";
-import { convertPdfToImage } from "~/lib/pdf2img";
+import FileUploader from "~/components/FileUploader";
 import { usePuterStore } from "~/lib/puter";
+import { useNavigate } from "react-router";
+import { convertPdfToImage } from "~/lib/pdf2img";
 import { generateUUID } from "~/lib/utils";
+import { prepareInstructions } from "../constants";
 
 const Upload = () => {
   const { auth, isLoading, fs, ai, kv } = usePuterStore();
   const navigate = useNavigate();
-  const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [statusMessage, setStatusMessage] = useState<string>("");
+  const [isProcessing, setIsProcessing] = useState(false);
+  const [statusText, setStatusText] = useState("");
   const [file, setFile] = useState<File | null>(null);
 
-  const handleFileSelects = (file: File | null) => {
+  const handleFileSelect = (file: File | null) => {
     setFile(file);
   };
 
@@ -24,26 +23,28 @@ const Upload = () => {
     jobTitle,
     jobDescription,
     file,
-  }: AnalyzerPropsTypes) => {
+  }: {
+    companyName: string;
+    jobTitle: string;
+    jobDescription: string;
+    file: File;
+  }) => {
     setIsProcessing(true);
-    setStatusMessage("File uploading...📩");
 
+    setStatusText("Uploading the file...");
     const uploadedFile = await fs.upload([file]);
-    if (!uploadedFile)
-      return setStatusMessage("Error failed to upload file ❌");
+    if (!uploadedFile) return setStatusText("Error: Failed to upload file");
 
-    setStatusMessage("Converting to image file...");
+    setStatusText("Converting to image...");
     const imageFile = await convertPdfToImage(file);
     if (!imageFile.file)
-      return setStatusMessage("Error: failed to convert PDF to Image⛓️‍💥");
+      return setStatusText("Error: Failed to convert PDF to image");
 
-    setStatusMessage("Uploading image...");
+    setStatusText("Uploading the image...");
     const uploadedImage = await fs.upload([imageFile.file]);
-    if (!uploadedImage)
-      return setStatusMessage("Error failed to upload image ❌");
+    if (!uploadedImage) return setStatusText("Error: Failed to upload image");
 
-    setStatusMessage("Preparing data...");
-
+    setStatusText("Preparing data...");
     const uuid = generateUUID();
     const data = {
       id: uuid,
@@ -54,35 +55,34 @@ const Upload = () => {
       jobDescription,
       feedback: "",
     };
-    await kv.set(`resume${uuid}`, JSON.stringify(data));
+    await kv.set(`resume:${uuid}`, JSON.stringify(data));
 
-    setStatusMessage("Analyzing...");
+    setStatusText("Analyzing...");
 
     const feedback = await ai.feedback(
       uploadedFile.path,
       prepareInstructions({ jobTitle, jobDescription })
     );
+    if (!feedback) return setStatusText("Error: Failed to analyze resume");
 
-    if (!feedback) return setStatusMessage("Error: Failed to analyze resume");
     const feedbackText =
       typeof feedback.message.content === "string"
         ? feedback.message.content
         : feedback.message.content[0].text;
 
     data.feedback = JSON.parse(feedbackText);
-    await kv.set(`resume${uuid}`, JSON.stringify(data));
-    setStatusMessage("Analysis complete, redirecting🤖");
+    await kv.set(`resume:${uuid}`, JSON.stringify(data));
+    setStatusText("Analysis complete, redirecting...");
     console.log(data);
     navigate(`/resume/${uuid}`);
   };
 
-  const handleSubmit = (evt: FormEvent<HTMLFormElement>) => {
-    evt.preventDefault();
-
-    const form = evt.currentTarget.closest("form");
+  const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const form = e.currentTarget.closest("form");
     if (!form) return;
-
     const formData = new FormData(form);
+
     const companyName = formData.get("company-name") as string;
     const jobTitle = formData.get("job-title") as string;
     const jobDescription = formData.get("job-description") as string;
@@ -93,30 +93,19 @@ const Upload = () => {
   };
 
   return (
-    <main
-      className="bg-[url('/images/bg-main.svg')] bg-cover"
-      aria-label="Upload Resume page"
-    >
+    <main className="bg-[url('/images/bg-main.svg')] bg-cover">
       <Navbar />
+
       <section className="main-section">
         <div className="page-heading py-16">
           <h1>Smart feedback for your dream job</h1>
           {isProcessing ? (
             <>
-              <h2>{statusMessage}</h2>
-              <img
-                src="/images/resume-scan.gif"
-                alt="resume scanning gif"
-                className="w-full"
-              />
+              <h2>{statusText}</h2>
+              <img src="/images/resume-scan.gif" className="w-full" />
             </>
           ) : (
-            <h2>
-              Drop your resume for an
-              <em className="font-medium text-green-400 p-1">ATS-Score</em>
-              and improvement tips
-              <span className="text-blue-500 font-semibold p-1">✓</span>
-            </h2>
+            <h2>Drop your resume for an ATS score and improvement tips</h2>
           )}
           {!isProcessing && (
             <form
@@ -129,8 +118,8 @@ const Upload = () => {
                 <input
                   type="text"
                   name="company-name"
+                  placeholder="Company Name"
                   id="company-name"
-                  placeholder="Enter company name"
                 />
               </div>
               <div className="form-div">
@@ -138,8 +127,8 @@ const Upload = () => {
                 <input
                   type="text"
                   name="job-title"
+                  placeholder="Job Title"
                   id="job-title"
-                  placeholder="Enter job title"
                 />
               </div>
               <div className="form-div">
@@ -147,15 +136,17 @@ const Upload = () => {
                 <textarea
                   rows={5}
                   name="job-description"
-                  placeholder="Enter job description"
+                  placeholder="Job Description"
+                  id="job-description"
                 />
               </div>
+
               <div className="form-div">
-                <label htmlFor="uploder">Upload Resume</label>
-                <FileUploader onFileSelect={handleFileSelects} />
+                <label htmlFor="uploader">Upload Resume</label>
+                <FileUploader onFileSelect={handleFileSelect} />
               </div>
 
-              <button type="submit" className="primary-button">
+              <button className="primary-button" type="submit">
                 Analyze Resume
               </button>
             </form>
@@ -165,5 +156,4 @@ const Upload = () => {
     </main>
   );
 };
-
 export default Upload;
