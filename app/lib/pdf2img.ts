@@ -5,29 +5,36 @@ export interface PdfConversionResult {
 }
 
 let pdfjsLib: any = null;
-let isLoading = false;
-let loadPromise: Promise<any> | null = null;
 
-async function loadPdfJs(): Promise<any> {
+async function loadPdfJs() {
   if (pdfjsLib) return pdfjsLib;
-  if (loadPromise) return loadPromise;
 
-  isLoading = true;
-  // @ts-expect-error - pdfjs-dist/build/pdf.mjs is not a module
-  loadPromise = import("pdfjs-dist/build/pdf.mjs").then((lib) => {
-    // Set the worker source to use local file
-    lib.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-    pdfjsLib = lib;
-    isLoading = false;
-    return lib;
-  });
+  const lib = await import("pdfjs-dist/build/pdf.mjs");
+  const { default: pdfjsWorkerURL } = await import(
+    "pdfjs-dist/build/pdf.worker.mjs?url"
+  );
 
-  return loadPromise;
+  if (typeof window !== "undefined" && "Worker" in window) {
+    lib.GlobalWorkerOptions.workerPort = new Worker(pdfjsWorkerURL, {
+      type: "module",
+    });
+  }
+
+  pdfjsLib = lib;
+  return lib;
 }
 
 export async function convertPdfToImage(
   file: File
 ): Promise<PdfConversionResult> {
+  if (typeof window === "undefined") {
+    return {
+      imageUrl: "",
+      file: null,
+      error: "PDF conversion is only available in the browser",
+    };
+  }
+
   try {
     const lib = await loadPdfJs();
 
@@ -47,13 +54,16 @@ export async function convertPdfToImage(
       context.imageSmoothingQuality = "high";
     }
 
-    await page.render({ canvasContext: context!, viewport }).promise;
+    await page.render({
+      canvasContext: context!,
+      viewport,
+      canvas,
+    }).promise;
 
     return new Promise((resolve) => {
       canvas.toBlob(
         (blob) => {
           if (blob) {
-            // Create a File from the blob with the same name as the pdf
             const originalName = file.name.replace(/\.pdf$/i, "");
             const imageFile = new File([blob], `${originalName}.png`, {
               type: "image/png",
@@ -73,7 +83,7 @@ export async function convertPdfToImage(
         },
         "image/png",
         1.0
-      ); // Set quality to maximum (1.0)
+      );
     });
   } catch (err) {
     return {
