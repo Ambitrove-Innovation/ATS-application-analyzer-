@@ -7,8 +7,10 @@ const useAuthRedirect = (url: string) => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!auth.isAuthenticated) navigate(`${url}`);
-  }, [auth.isAuthenticated, isLoading]);
+    if (!isLoading && !auth.isAuthenticated) {
+      navigate(url);
+    }
+  }, [isLoading, auth.isAuthenticated, navigate, url]);
 };
 
 export default useAuthRedirect;
