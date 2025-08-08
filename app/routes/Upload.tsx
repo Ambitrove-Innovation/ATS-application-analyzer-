@@ -6,6 +6,7 @@ import { useNavigate } from "react-router";
 import { convertPdfToImage } from "~/lib/pdf2img";
 import { generateUUID } from "~/lib/utils";
 import { prepareInstructions } from "../constants";
+import type { AnalyzerPropsTypes } from "~/interfacePropTypes/analyzerPropTypes";
 
 const Upload = () => {
   const { auth, isLoading, fs, ai, kv } = usePuterStore();
@@ -23,12 +24,7 @@ const Upload = () => {
     jobTitle,
     jobDescription,
     file,
-  }: {
-    companyName: string;
-    jobTitle: string;
-    jobDescription: string;
-    file: File;
-  }) => {
+  }: AnalyzerPropsTypes) => {
     setIsProcessing(true);
 
     setStatusText("Uploading the file...");
