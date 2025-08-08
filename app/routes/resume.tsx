@@ -1,32 +1,31 @@
+import { Link, useNavigate, useParams } from "react-router";
 import { useEffect, useState } from "react";
-import { useParams, Link, useNavigate } from "react-router";
 import { usePuterStore } from "~/lib/puter";
-import useAuthRedirect from "~/hooks/useAuthRedirect";
 import Summary from "~/components/Summary";
 import ATS from "~/components/ATS";
 import Details from "~/components/Details";
 
 export const meta = () => [
-  { title: "Resumind | Review" },
-  {
-    name: "description",
-    content: "Detailed overview of your resume application",
-  },
+  { title: "Resumind | Review " },
+  { name: "description", content: "Detailed overview of your resume" },
 ];
 
-const resume = () => {
+const Resume = () => {
+  const { auth, isLoading, fs, kv } = usePuterStore();
   const { id } = useParams();
   const [imageUrl, setImageUrl] = useState<string>("");
   const [resumeUrl, setResumeUrl] = useState<string>("");
   const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const navigate = useNavigate();
 
-  const { auth, isLoading, fs, kv } = usePuterStore();
-
-  useAuthRedirect(`/auth?next=/resume/${id}`);
+  useEffect(() => {
+    if (!isLoading && !auth.isAuthenticated)
+      navigate(`/auth?next=/resume/${id}`);
+  }, [isLoading]);
 
   useEffect(() => {
     const loadResume = async () => {
-      const resume = await kv.get(`/resume${id}`);
+      const resume = await kv.get(`resume:${id}`);
 
       if (!resume) return;
 
@@ -45,19 +44,14 @@ const resume = () => {
       setImageUrl(imageUrl);
 
       setFeedback(data.feedback);
-
-      console.log({
-        message: resumeUrl,
-        imageUrl,
-        feedback: data.feedback,
-      });
+      console.log({ resumeUrl, imageUrl, feedback: data.feedback });
     };
 
     loadResume();
   }, [id]);
 
   return (
-    <main className="!pt-0" aria-label="Resume review page">
+    <main className="!pt-0">
       <nav className="resume-nav">
         <Link to="/" className="back-button">
           <img src="/icons/back.svg" alt="logo" className="w-2.5 h-2.5" />
@@ -67,25 +61,21 @@ const resume = () => {
         </Link>
       </nav>
       <div className="flex flex-row w-full max-lg:flex-col-reverse">
-        <section className="feedback-section bg-[url('/images/bg-small.svg')] bg-cover h-[100vh] sticky top-0 items-center justify-center">
+        <section className="feedback-section bg-[url('/images/bg-small.svg') bg-cover h-[100vh] sticky top-0 items-center justify-center">
           {imageUrl && resumeUrl && (
-            <div className=" animate-in fade-in duration-1000 gradient-border max-sm:m-0 h-[90%] max-w-xl:h-fit w-fit">
-              currentTarget | Page{id}
+            <div className="animate-in fade-in duration-1000 gradient-border max-sm:m-0 h-[90%] max-wxl:h-fit w-fit">
               <a href={resumeUrl} target="_blank" rel="noopener noreferrer">
                 <img
                   src={imageUrl}
-                  decoding="async"
-                  loading="lazy"
-                  alt="Resume image"
-                  title="resume"
                   className="w-full h-full object-contain rounded-2xl"
+                  title="resume"
                 />
               </a>
             </div>
           )}
         </section>
         <section className="feedback-section">
-          <h2 className="text-4xl !text-black font-semibold">Resume Review</h2>
+          <h2 className="text-4xl !text-black font-bold">Resume Review</h2>
           {feedback ? (
             <div className="flex flex-col gap-8 animate-in fade-in duration-1000">
               <Summary feedback={feedback} />
@@ -96,16 +86,11 @@ const resume = () => {
               <Details feedback={feedback} />
             </div>
           ) : (
-            <img
-              src="/images/resume-scan-2.gif"
-              alt="Scanning gif"
-              className="w-full"
-            />
+            <img src="/images/resume-scan-2.gif" className="w-full" />
           )}
         </section>
       </div>
     </main>
   );
 };
-
-export default resume;
+export default Resume;
