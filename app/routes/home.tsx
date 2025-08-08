@@ -70,7 +70,7 @@ export default function Home() {
               to="/upload"
               className="primary-button w-fit text-xl font-semibold"
             >
-              Upload Resume
+              Upload
             </Link>
           </div>
         )}
